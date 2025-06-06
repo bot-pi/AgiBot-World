@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug finetune_genie.py with torchrun",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "torch.distributed.run",
+            "args": [
+                "--nproc_per_node=1",
+                "scripts/finetune_genie.py"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
