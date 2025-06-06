@@ -188,17 +188,17 @@ class Wrapped_Model(torch.nn.Module):
 @dataclass
 class FinetuneConfig:
     # fmt: off
-    vla_path: str = "checkpoints/finetuned"                         # Path to univla model ckpt
-    lam_path: str = ""
+    vla_path: str = "ckpts/univla-7b"                         # Path to univla model ckpt
+    lam_path: str = "ckpts/univla-latent-action-model/lam-stage-2.ckpt"
     # Directory Paths
-    data_root_dir: str = "checkpoints/lam-stage-2.ckpt"                                         # Path to dataset
+    data_root_dir: str = "dataset/Manipulation-RealRobot"           # Path to dataset
     meta_json_dir: str = ""  
-    dataset_name: str = "genie_dataset/dustbin"                                   # Name of fine-tuning dataset
+    dataset_name: str = "genie_dataset/dustbin"                     # Name of fine-tuning dataset
     run_root_dir: Path = Path("runs")                               # Path to directory to store logs & checkpoints
     adapter_tmp_dir: Path = Path("adapter-tmp")                     # Temporary directory for LoRA weights before fusing
 
     # Fine-tuning Parameters
-    batch_size: int = 8                                             # Fine-tuning batch size
+    batch_size: int = 1                                             # Fine-tuning batch size
     max_steps: int = 40000                                          # Max number of fine-tuning steps
     save_steps: int = 40000                                         # Interval for checkpoint saving
     learning_rate: float = 1.5e-4                                   # Fine-tuning learning rate
@@ -352,7 +352,7 @@ def finetune(cfg: FinetuneConfig) -> None:
     ActionSpacePadder = a2d_cfg.ActionSpacePadderArguments()
 
     text_tokenizer = AutoTokenizer.from_pretrained(
-        "InternVL2-2B",
+        "OpenGVLab/InternVL2-2B",
         trust_remote_code=True,
         add_eos_token=False,
     )
