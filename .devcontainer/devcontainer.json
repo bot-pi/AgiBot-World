@@ -1,0 +1,30 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+{
+	"name": "agibot",
+	"dockerFile": "train.dockerfile",
+	"runArgs": [
+		"--gpus=all",
+		"--shm-size=48.0gb",
+		"--rm",
+		"-it"
+	],
+	//"remoteUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"yzhang.markdown-all-in-one",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "h5web.vscode-h5web"
+			]
+		}
+	},
+	// mount dataset folder
+    "mounts": [
+        "source=${localWorkspaceFolder}/dataset,target=/workspaces/AgiBot-World/dataset,type=bind"
+    ]	
+	//"remoteEnv": {
+	//	"PYTHONPATH": "/workspaces/self-driving-projects/c2-sensor-fusion/exercises"
+	//}
+}
