@@ -40,14 +40,12 @@ class ActionDecoder(torch.nn.Module):
         
         if with_proprio:
             self.proprio_proj = nn.Linear(n_joints, hidden_dim)
-
         self.latent_action_pool = MAPBlock(
             n_layers=n_layers,
             vis_dim=vis_dim,
             embed_dim=hidden_dim,
             n_heads=hidden_dim//64,
             )
-
         self.visual_pool = MAPBlock(
             vis_dim=vis_dim,
             embed_dim=hidden_dim,

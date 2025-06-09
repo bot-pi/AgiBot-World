@@ -71,7 +71,6 @@ def infer(policy, cfg):
             img_h = bridge.compressed_imgmsg_to_cv2(img_h_raw, desired_encoding="rgb8")
             img_l = bridge.compressed_imgmsg_to_cv2(img_l_raw, desired_encoding="rgb8")
             img_r = bridge.compressed_imgmsg_to_cv2(img_r_raw, desired_encoding="rgb8")
-
             lang = "Pick up the brown plum juice from the restock box with the right arm.;Place the brown plum juice on the shelf where the brown plum juice is located with the right arm."
 
             # img_h_pil = Image.fromarray(img_h)
@@ -99,7 +98,7 @@ def infer(policy, cfg):
 class GenerateConfig:
 
     model_family: str = "openvla"                    # Model family
-    pretrained_checkpoint: Union[str, Path] = "checkpoints/finetuned"
+    pretrained_checkpoint: Union[str, Path] = "rundir"
     load_in_8bit: bool = False                       # (For OpenVLA only) Load with 8-bit quantization
     load_in_4bit: bool = True                       # (For OpenVLA only) Load with 4-bit quantization
 

@@ -36,4 +36,8 @@ torch==2.2.0
 torchvision==0.17.0
 tqdm==4.66.4
 transformers==4.40.1
+<<<<<<< HEAD
 webdataset==0.2.111
+=======
+webdataset==0.2.111
+>>>>>>> 3793a2a (adapt to wrist view observation input; update inference code)
