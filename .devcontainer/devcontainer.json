@@ -20,11 +20,11 @@
 			]
 		}
 	},
-	// mount dataset folder
+	// workspace: no space between keys
+	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind", 
+	"workspaceFolder": "/workspace",
+	// mount dataset folder if dataset is a symlink to a local folder
     "mounts": [
-        "source=${localWorkspaceFolder}/dataset,target=/workspaces/AgiBot-World/dataset,type=bind"
+        "source=${localWorkspaceFolder}/dataset,target=/workspace/dataset,type=bind"
     ]	
-	//"remoteEnv": {
-	//	"PYTHONPATH": "/workspaces/self-driving-projects/c2-sensor-fusion/exercises"
-	//}
 }
