@@ -362,7 +362,7 @@ def finetune(cfg):
         task_dataset_processors_cfg=dataset_args.dataset_processors,
         task_runtime_processors_cfg=dataset_args.runtime_processors,
         shuffle=True,
-        statistic=True,
+        statistic=False, #TODO: seems useless
         debug_one_episode=cfg.debug,
         # debug_one_episode=False,
     )

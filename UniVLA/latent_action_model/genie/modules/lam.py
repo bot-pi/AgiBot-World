@@ -11,7 +11,7 @@ from torchvision import transforms
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
 
-
+# for stage-1
 class UncontrolledDINOLatentActionModel(nn.Module):
     """
     Latent action VQ-VAE.
@@ -167,7 +167,7 @@ class UncontrolledDINOLatentActionModel(nn.Module):
 
 
 
-
+# for stage 2
 class ControllableDINOLatentActionModel(nn.Module):
     """
     Latent action VQ-VAE.
@@ -191,8 +191,9 @@ class ControllableDINOLatentActionModel(nn.Module):
         patch_token_dim = in_dim * patch_size ** 2
 
         self.dino_transform = transforms.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD)
-        self.dino_encoder = torch.hub.load('latent_action_model/facebookresearch_dinov2_main', 'dinov2_vitb14_reg', source='local', pretrained=False)
-        self.dino_encoder.load_state_dict(torch.load('latent_action_model/facebookresearch_dinov2_main/dinov2_vitb14_reg4_pretrain.pth', map_location='cpu'))
+        #self.dino_encoder = torch.hub.load('/mnt/chenjin/AgiBot-World/latent_action_model/facebookresearch_dinov2_main', 'dinov2_vitb14_reg', source='local', pretrained=False)
+        #self.dino_encoder.load_state_dict(torch.load('/mnt/chenjin/AgiBot-World/latent_action_model/facebookresearch_dinov2_main/dinov2_vitb14_reg4_pretrain.pth', map_location='cpu'))
+        self.dino_encoder = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14_reg')
         self.dino_encoder.requires_grad_(False)
 
         dino_dim = 768
