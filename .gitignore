@@ -167,3 +167,7 @@ dataset
 # checkpoints
 ckpts/*
 !ckpts/download_baseline.sh
+
+# ignore run results/logs
+runs/* 
+wandb/*

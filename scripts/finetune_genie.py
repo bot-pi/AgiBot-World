@@ -191,7 +191,7 @@ class FinetuneConfig:
     vla_path: str = "ckpts/univla-7b"                         # Path to univla model ckpt
     lam_path: str = "ckpts/univla-latent-action-model/lam-stage-2.ckpt"
     # Directory Paths
-    data_root_dir: str = "dataset/Manipulation-RealRobot"           # Path to dataset
+    data_root_dir: str = "./dataset/Manipulation-SimData"           # Path to dataset
     meta_json_dir: str = ""  
     dataset_name: str = "genie_dataset/dustbin"                     # Name of fine-tuning dataset
     run_root_dir: Path = Path("runs")                               # Path to directory to store logs & checkpoints
@@ -397,7 +397,7 @@ def finetune(cfg: FinetuneConfig) -> None:
         task_dataset_processors_cfg=dataset_args.dataset_processors,
         task_runtime_processors_cfg=dataset_args.runtime_processors,
         shuffle=True,
-        statistic=True,
+        statistic=False, #TODO: seems useless
         debug_one_episode=cfg.debug,
         # debug_one_episode=False,
     )

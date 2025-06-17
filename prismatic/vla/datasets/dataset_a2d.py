@@ -126,16 +126,18 @@ class MetaDataset(Dataset):
             logger.info(f"[DATASET] Load {len(valid_episodes)} valid episode_ids from {valid_episode_txt}")
             self.valid_episodes = set(valid_episodes)
 
-    def get_episode_path(self, episode_info):
+    #NOTE: added task_folder to be compatiable wit simdata
+    def get_episode_path(self, episode_info, task_folder):
         task_id = episode_info["task_id"]
         epath = os.path.join(
-            self.data_root_dir,
+            self.data_root_dir, task_folder,
             f'{task_id}/{episode_info["job_id"]}/{episode_info["sn_code"]}/{episode_info["episode_id"]}',
         )
         return epath
-
+    #NOTE: added task_folder to be compatiable with simdata
     def read_meta_info(self, episode_info):
-        epath = self.get_episode_path(episode_info)
+        #epath = self.get_episode_path(episode_info)
+        epath = episode_info["episode_dir"]
         meta_path = os.path.join(epath, "meta_info.json")
         with open(meta_path, "r") as fid:
             meta_info = json.load(fid)
@@ -198,12 +200,14 @@ class BaseDataset(MetaDataset):
         self.task_dataset_processors = PipelineComposer(task_dataset_processors_cfg)
         self.task_runtime_processors = PipelineComposer(task_runtime_processors_cfg)
 
+
         all_dataset_episode_info = []
         for idx, (task_id, task_config) in enumerate(dataset_cfg.items()):
-            label_file_name = os.path.join(self.label_file_dir, task_config["label_file_name"])
+            #label_file_name = os.path.join(self.label_file_dir, task_config["label_file_name"])
+            label_file_name = os.path.join(self.data_root_dir, task_id, task_config["label_file_name"])
             with open(label_file_name, "r") as fid:
                 label_list = json.load(fid)
-            label_list = self.pack_addition_info(label_list, task_config)
+            label_list = self.pack_addition_info(label_list, task_id, task_config)
             all_dataset_episode_info.extend(label_list)
             logger.info(f"label task{task_id} file: {label_file_name}, contains {len(label_list)} episode info.")
 
@@ -256,9 +260,10 @@ class BaseDataset(MetaDataset):
 
         logger.info(f"Finally, get {len(self.data)} pair data, original len is {original_length}")
 
-    def pack_addition_info(self, labels, task_config):
+    #NOTE: added task_id to be compatiable with simdata
+    def pack_addition_info(self, labels, task_id, task_config):
         for label in labels:
-            label["episode_dir"] = self.get_episode_path(label)
+            label["episode_dir"] = self.get_episode_path(label, task_id)
             label["task_specific_cfg"] = task_config
         return labels
 
@@ -324,7 +329,7 @@ class BaseDataset(MetaDataset):
 
         episode_info_filtered = []
         for ep_info in tqdm(episode_infos, desc="sanity_check", mininterval=60):
-            epath = self.get_episode_path(ep_info)
+            epath = ep_info["episode_dir"]
             if not os.path.exists(epath):
                 sanity_check_result["ep_dir_not_exist"] += 1
                 continue
