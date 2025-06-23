@@ -82,6 +82,28 @@ class ActionHead:
     use_real_state = False  # real joint_abs_position or full -1 fake state
 
 
+train_task_ids = [
+    "clear_the_countertop_waste"
+]
+    #"heat_the_food_in_the_microwave",
+    #"open_drawer_and_store_items",
+    #"pack_in_the_supermarket",
+    #"restock_supermarket_items"
+#]
+
+train_set = {}
+val_set = {}
+for num in train_task_ids:
+    train_set[str(num)] = {
+        "use_cam_list": ["head", "hand_right", "hand_left"],
+        "label_file_name": f"task_train.json",
+    }
+    val_set[str(num)] = {
+        "use_cam_list": ["head", "hand_right", "hand_left"],
+        "label_file_name": f"task_val.json",
+    }
+
+
 @dataclass
 class DatasetArguments(BaseDatasetArguments):
     meta_json_dir: Optional[str] = "dustbin"
@@ -114,7 +136,7 @@ class DatasetArguments(BaseDatasetArguments):
                 action_use_delta=False,
                 delta_type="frame",
                 gripper_use_delta=False,
-                mp_cnt=20,
+                mp_cnt=8,
             ),
         ]
     )
