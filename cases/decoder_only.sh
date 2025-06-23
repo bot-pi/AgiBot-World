@@ -3,7 +3,7 @@ torchrun \
 --standalone \
 --nnodes 1 \
 --nproc-per-node 1 \
-cases/finetune.py \
+scripts/finetune_genie.py \
 --vla_path ckpts/univla-7b \
 --lam_path ckpts/univla-latent-action-model/lam-stage-2.ckpt \
 --data_root_dir dataset/Manipulation-SimData \
@@ -14,3 +14,8 @@ cases/finetune.py \
 --save_steps 1000 \
 --run_root_dir runs/agibot \
 --adapter_tmp_dir runs/agibot \
+--freeze_vla True \
+--use_lora False \
+--use_quantization True \
+--wandb_project decoder-only \
+--debug False
