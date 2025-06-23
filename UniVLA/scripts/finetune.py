@@ -102,9 +102,9 @@ class ActionDecoder(torch.nn.Module):
                 proprio_r_arm = proprio[:,8:-1]
                 proprio = torch.concat((proprio_l_arm, proprio_r_arm), dim=-1)
             proprio = self.proprio_proj(proprio)
-            action = self.proj(torch.cat((action_token, proprio), dim=1))
+            action = self.proj(torch.cat((action_token, proprio), dim=1)) # (1, 1024) -> (16, 30)
         else:
-            action = self.proj(action_token)
+            action = self.proj(action_token) #NOTE: the input dimension mismatch (1, 512) -> 
 
         return action
     
@@ -221,13 +221,16 @@ def finetune(cfg):
     # Start =>> Build Directories
     run_dir, adapter_dir = cfg.run_root_dir, cfg.adapter_tmp_dir
     os.makedirs(run_dir, exist_ok=True)
-
+    os.makedirs(adapter_dir, exist_ok=True)
+    
     # Quantization Config =>> only if LoRA fine-tuning
     quantization_config = None
     if cfg.use_quantization:
-        assert cfg.use_lora, "Quantized training only supported for LoRA fine-tuning!"
         quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_quant_type="nf4"
+            load_in_4bit=True, 
+            bnb_4bit_compute_dtype=torch.bfloat16, 
+            bnb_4bit_quant_storage="uint8",
+            bnb_4bit_quant_type="nf4"
         )
 
     # Register OpenVLA model to HF Auto Classes (not needed if the model is on HF Hub)
@@ -276,7 +279,7 @@ def finetune(cfg):
         ).to(device_id)
 
     trainable_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('Total Trainable Params: ', trainable_total_params)
+    print('Total Trainable Params: ', trainable_total_params) # trainable 18,770,912 for action decoder only
     
     # Create Optimizer =>> note that we default to a simple constant learning rate!
     trainable_params = [param for param in model.parameters() if param.requires_grad]
@@ -526,10 +529,11 @@ def finetune(cfg):
                 loss = act_loss if cfg.freeze_vla else act_loss + (output.loss) * cfg.lam_loss_weight
                 normalized_loss = loss / cfg.grad_accumulation_steps
 
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.3)
                 # Backward pass
-                normalized_loss.backward()
-
+                #normalized_loss.backward()
+                accelerator.backward(normalized_loss)
+                
+                
                 # Compute Accuracy and L1 Loss for Logging
                 action_logits = output.logits[:, model.module.vla.vision_backbone.featurizer.patch_embed.num_patches : -1]
                 action_preds = action_logits.argmax(dim=2)
@@ -555,19 +559,19 @@ def finetune(cfg):
                 smoothened_action_accuracy = sum(recent_action_accuracies) / len(recent_action_accuracies)
 
                 # Push Metrics to W&B (every 10 gradient steps)
-                # if distributed_state.is_main_process and gradient_step_idx % 5 == 0 and not cfg.debug:
+                if distributed_state.is_main_process and gradient_step_idx % 10 == 0 and not cfg.debug:
                     
-                #     wandb.log(
-                #         {
-                #             "train_loss": smoothened_loss,
-                #             "latent_action_accuracy": smoothened_action_accuracy,
-                #             "action_loss": act_loss.item(),
-                #             "action_loss_1step": loss_one_step.item(),
-                #             "lr": optimizer.state_dict()['param_groups'][0]['lr']
-                #             # "latent_align_loss": latent_align_loss.item(),
-                #         },
-                #         step=gradient_step_idx + current_step,
-                #     )
+                     wandb.log(
+                         {
+                             "train_loss": smoothened_loss,
+                             "latent_action_accuracy": smoothened_action_accuracy,
+                             "action_loss": act_loss.item(),
+                             "action_loss_1step": loss_one_step.item(),
+                             "lr": optimizer.state_dict()['param_groups'][0]['lr']
+                             # "latent_align_loss": latent_align_loss.item(),
+                         },
+                         step=gradient_step_idx + current_step,
+                     )
 
                 # Initialize Logging =>> TensorBoard
                 if distributed_state.is_main_process:
@@ -581,6 +585,7 @@ def finetune(cfg):
                     
                 # Optimizer Step
                 if (batch_idx + 1) % cfg.grad_accumulation_steps == 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.3)
                     optimizer.step()
                     optimizer.zero_grad()
                     scheduler.step()
