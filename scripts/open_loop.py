@@ -14,7 +14,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.processing_prismatic import PrismaticProcessor
 import torch.distributed as dist
 import prismatic.vla.datasets.pretrainAe_a2d_pretrain_v6 as a2d_cfg
-from experiments.robot.geniesim.genie_model import WrappedGenieEvaluation, WrappedModel
+from robot.geniesim.genie_model import WrappedGenieEvaluation, WrappedModel
 
 
 def calc_mse_for_single_trajectory(
@@ -182,7 +182,7 @@ def get_policy(cfg):
         task_dataset_processors_cfg=dataset_args.dataset_processors,
         task_runtime_processors_cfg=dataset_args.runtime_processors,
         shuffle=False,
-        statistic=True,
+        statistic=False,
         debug_one_episode=True,
     )
 
