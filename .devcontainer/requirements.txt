@@ -42,3 +42,5 @@ einops-exts==0.0.4
 pandas==2.3.0
 decord==0.6.0
 sentencepiece==0.2.0
+deepspeed==0.17.1
+bitsandbytes==0.46.0
