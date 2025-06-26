@@ -29,7 +29,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
 from prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
 from prismatic.models.policy.transformer_utils import MAPBlock
-from prismatic.util.data_utils import PaddedCollatorForActionPrediction_Geniesim
+from prismatic.util.data_utils import PaddedCollatorForActionPrediction_Gensim
 import prismatic.vla.datasets.pretrainAe_a2d_pretrain_v6 as a2d_cfg
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -215,7 +215,7 @@ def finetune(cfg):
     torch.cuda.set_device(device_id := distributed_state.local_process_index)
     torch.cuda.empty_cache()
 
-    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True, static_graph=True)
     accelerator = Accelerator(mixed_precision="bf16", kwargs_handlers=[ddp_kwargs])
 
     # Start =>> Build Directories
@@ -247,6 +247,7 @@ def finetune(cfg):
         quantization_config=quantization_config,
         low_cpu_mem_usage=True,
         trust_remote_code=True,
+        attn_implementation="flash_attention_2" if torch.cuda.is_available() else "sdpa",
     )
 
     # Device Placement =>> note that BitsAndBytes automatically handles for quantized training
@@ -284,7 +285,7 @@ def finetune(cfg):
     # Create Optimizer =>> note that we default to a simple constant learning rate!
     trainable_params = [param for param in model.parameters() if param.requires_grad]
     optimizer = AdamW(trainable_params, lr=cfg.learning_rate, weight_decay=1e-3)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = int(cfg.max_steps * 8 * 0.8), gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = int(cfg.max_steps * 0.8), gamma=0.1)
 
     from latent_action_model.genie.modules.lam import ControllableDINOLatentActionModel
     
@@ -371,7 +372,7 @@ def finetune(cfg):
         # debug_one_episode=False,
     )
 
-    collator = PaddedCollatorForActionPrediction_Geniesim()
+    collator = PaddedCollatorForActionPrediction_Gensim()
     dataloader = DataLoader(
         vla_dataset,
         batch_size=cfg.batch_size,
