@@ -183,7 +183,7 @@ def get_policy(cfg):
         task_runtime_processors_cfg=dataset_args.runtime_processors,
         shuffle=False,
         statistic=False,
-        debug_one_episode=True,
+        debug_one_episode=cfg.debug,
     )
 
     return policy, vla_dataset
@@ -193,14 +193,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenLoop Config")
     
     # argparse
-    parser.add_argument("--pretrained_checkpoint", type=str, default="checkpoints/finetuned", help="Path to univla model ckpt")
-    parser.add_argument("--action_decoder_path", type=str, default="", help="Path to ADR")
-    parser.add_argument("--data_root_dir", type=str, default="", help="Path to dataset")
+    parser.add_argument("--model_family", type=str, default="openvla", help="Model family to use")
+    parser.add_argument("--pretrained_checkpoint", type=str, default="ckpts/univla-7b", help="Path to univla model ckpt")
+    parser.add_argument("--action_decoder_path", type=str, default="runs/agibot/action_decoder.pt", help="Path to ADR")
+    parser.add_argument("--data_root_dir", type=str, default="dataset/Manipulation-SimData", help="Path to dataset")
     parser.add_argument("--meta_json_dir", type=str, default="", help="Path to dataset meta json")
     parser.add_argument("--window_size", type=int, default=30, help="Window size")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
-    parser.add_argument("--decoder_n_layers", type=int, default=2, help="Number of decoder layers")
-    parser.add_argument("--decoder_hidden_dim", type=int, default=1024, help="Decoder hidden dimension")
     parser.add_argument("--with_proprio", action="store_true", help="Whether to use proprioceptive data")
     parser.add_argument("--wogripper", action="store_true", help="Whether to not use proprioceptive gripper data")
     parser.add_argument("--save_path", type=str, default="", help="Path to output openloop fig")
@@ -208,9 +207,9 @@ if __name__ == "__main__":
     parser.add_argument("--load_in_8bit", action="store_true", help="Whether to 8-bit quantize VLA")
     parser.add_argument("--load_in_4bit", action="store_true", help="Whether to 4-bit quantize VLA")
     parser.add_argument("--center_crop", action="store_true", help="Whether to sue center crop")
-    parser.add_argument("--n_layers", type=int, default=2, help="decoder layers num")
-    parser.add_argument("--hidden_dim", type=int, default=1024, help="decoder hidden dim")
-    parser.add_argument("--balancing_factor", type=int, default=0.01, help="balancing_factor")
+    parser.add_argument("--n_layers", type=int, default=1, help="decoder layers num")
+    parser.add_argument("--hidden_dim", type=int, default=512, help="decoder hidden dim")
+    parser.add_argument("--balancing_factor", type=float, default=0.01, help="balancing_factor")
 
     args = parser.parse_args()
 
