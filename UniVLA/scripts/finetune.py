@@ -29,7 +29,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
 from prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
 from prismatic.models.policy.transformer_utils import MAPBlock
-from prismatic.util.data_utils import PaddedCollatorForActionPrediction_Geniesim
+from prismatic.util.data_utils import PaddedCollatorForActionPrediction_Gensim
 import prismatic.vla.datasets.pretrainAe_a2d_pretrain_v6 as a2d_cfg
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -372,7 +372,7 @@ def finetune(cfg):
         # debug_one_episode=False,
     )
 
-    collator = PaddedCollatorForActionPrediction_Geniesim()
+    collator = PaddedCollatorForActionPrediction_Gensim()
     dataloader = DataLoader(
         vla_dataset,
         batch_size=cfg.batch_size,
