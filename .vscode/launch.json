@@ -8,7 +8,7 @@
             "module": "torch.distributed.run",
             "args": [
                 "--nproc_per_node=1",
-                "scripts/finetune_genie.py"
+                "scripts/finetune.py"
             ],
             "console": "integratedTerminal",
             "justMyCode": false
