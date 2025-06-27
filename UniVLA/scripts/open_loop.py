@@ -13,7 +13,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.processing_prismatic import PrismaticProcessor
 import torch.distributed as dist
 import prismatic.vla.datasets.pretrainAe_a2d_pretrain_v6 as a2d_cfg
-from robot.geniesim.genie_model import WrappedGenieEvaluation, WrappedModel
+from experiments.robot.geniesim.genie_model import WrappedGenieEvaluation, WrappedModel
 
 
 def calc_mse_for_single_trajectory(
