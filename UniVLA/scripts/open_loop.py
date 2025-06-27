@@ -13,7 +13,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.processing_prismatic import PrismaticProcessor
 import torch.distributed as dist
 import prismatic.vla.datasets.pretrainAe_a2d_pretrain_v6 as a2d_cfg
-from robot.geniesim.genie_model import WrappedGenieEvaluation, WrappedModel
+from experiments.robot.geniesim.genie_model import WrappedGenieEvaluation, WrappedModel
 
 
 def calc_mse_for_single_trajectory(
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_layers", type=int, default=1, help="decoder layers num")
     parser.add_argument("--hidden_dim", type=int, default=512, help="decoder hidden dim")
     parser.add_argument("--balancing_factor", type=float, default=0.01, help="balancing_factor")
-
+    parser.add_argument("--smooth", action="store_true", help="Whether to smooth the action")
     args = parser.parse_args()
 
     policy, dataset = get_policy(args)

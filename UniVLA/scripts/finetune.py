@@ -29,7 +29,7 @@ from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
 from prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
 from prismatic.models.policy.transformer_utils import MAPBlock
-from prismatic.util.data_utils import PaddedCollatorForActionPrediction_Gensim
+from prismatic.util.data_utils import PaddedCollatorForActionPrediction_Geniesim
 import prismatic.vla.datasets.pretrainAe_a2d_pretrain_v6 as a2d_cfg
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -208,7 +208,7 @@ class Wrapped_Model(torch.nn.Module):
 
 
 def finetune(cfg):
-    
+    print(cfg)
     # [Validate] Ensure GPU Available & Set Device / Distributed Context
     assert torch.cuda.is_available(), "Fine-tuning assumes at least one GPU is available!"
     distributed_state = PartialState()
@@ -247,7 +247,7 @@ def finetune(cfg):
         quantization_config=quantization_config,
         low_cpu_mem_usage=True,
         trust_remote_code=True,
-        attn_implementation="flash_attention_2" if torch.cuda.is_available() else "sdpa",
+        attn_implementation="sdpa",
     )
 
     # Device Placement =>> note that BitsAndBytes automatically handles for quantized training
@@ -372,7 +372,7 @@ def finetune(cfg):
         # debug_one_episode=False,
     )
 
-    collator = PaddedCollatorForActionPrediction_Gensim()
+    collator = PaddedCollatorForActionPrediction_Geniesim()
     dataloader = DataLoader(
         vla_dataset,
         batch_size=cfg.batch_size,

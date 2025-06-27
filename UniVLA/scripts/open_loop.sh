@@ -10,8 +10,9 @@ scripts/open_loop.py \
 --window_size 30 \
 --n_layers 1 \
 --hidden_dim 512 \
---balancing_factor 0.01 \
+--balancing_factor 0.1 \
 --save_path '' \
 --task_ids 1 \
 --with_proprio \
---debug
+--wogripper \
+--load_in_4bit # finetune with 4-bit quantization

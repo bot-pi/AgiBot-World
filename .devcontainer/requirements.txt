@@ -44,4 +44,3 @@ decord==0.6.0
 sentencepiece==0.2.0
 deepspeed==0.17.1
 bitsandbytes==0.46.0
-flash-attn==2.8.0
