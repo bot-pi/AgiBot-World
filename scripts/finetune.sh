@@ -3,7 +3,7 @@ torchrun \
 --standalone \
 --nnodes 1 \
 --nproc-per-node 1 \
-scripts/finetune_genie.py \
+scripts/finetune.py \
 --vla_path ckpts/univla-7b \
 --lam_path ckpts/univla-latent-action-model/lam-stage-2.ckpt \
 --data_root_dir dataset/Manipulation-SimData \
@@ -13,4 +13,4 @@ scripts/finetune_genie.py \
 --max_steps 5000 \
 --save_steps 1000 \
 --run_root_dir runs/agibot \
---adapter_tmp_dir runs/agibot \
+--adapter_tmp_dir runs/agibot 
