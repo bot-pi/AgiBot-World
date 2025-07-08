@@ -3,7 +3,7 @@ torchrun \
 --standalone \
 --nnodes 1 \
 --nproc-per-node 1 \
-scripts/finetune.py \
+UniVLA/scripts/finetune.py \
 --vla_path ckpts/univla-7b \
 --lam_path ckpts/univla-latent-action-model/lam-stage-2.ckpt \
 --data_root_dir dataset/Manipulation-SimData \
