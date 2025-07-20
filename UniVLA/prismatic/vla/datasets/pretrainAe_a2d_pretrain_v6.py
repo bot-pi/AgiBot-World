@@ -121,8 +121,8 @@ class DatasetArguments(BaseDatasetArguments):
     episode_processors: Optional[List[Dict]] = field(
         default_factory=lambda: [
             dict(type="EpisodeProcessorLoad", gripper_source="state"),  # gripper_source: state or action
-            dict(type="EpisodeProcessorJoint2Eef"),
-            dict(type="EpisodeProcessorRelableStaticFrames"),
+            dict(type="EpisodeProcessorJoint2Eef"), # didnt do anything yet
+            dict(type="EpisodeProcessorRelableStaticFrames"),# remove static frames at start and end
             dict(type="EpisodeProcessorInterpolateGripperValue", downsample_ratio=15, g_max=120),
             dict(type="EpisodeProcessorNormalizeGripperValue", g_min=0, g_max=120, verbose=True),
         ]

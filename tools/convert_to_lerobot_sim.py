@@ -4,6 +4,20 @@ This project is built upon the open-source project 🤗 LeRobot: https://github.
 We are grateful to the LeRobot team for their outstanding work and their contributions to the community. 
 
 If you find this project useful, please also consider supporting and exploring LeRobot. 
+
+This script converts Simulated Data in the AgiBot world chanllenge to the LeRobot format, 
+which is compatible with the LeRobot simulator.
+
+Lerobot 0.6.0 is required to run this script.
+Note Depth image is not supported in the current version of LeRobot, therefore workarounds are used here.
+
+Usage:
+python tools/convert_to_lerobot_sim.py \
+    --src_path sample/Manipulation-SimData \
+    --task_name stamp_the_seal \
+    --tgt_path ./test \
+    --push_to_hub
+
 """
 
 import os
@@ -48,24 +62,21 @@ from lerobot.datasets.utils import (
     write_episode_stats,
 )
 
+REPO_NAME = "yangyangfu/agibot-simdata-sample"  # Name of the output dataset, also used for the Hugging Face Hub
+
+
 HEAD_COLOR = "head_color.mp4"
 HAND_LEFT_COLOR = "hand_left_color.mp4"
 HAND_RIGHT_COLOR = "hand_right_color.mp4"
-HEAD_CENTER_FISHEYE_COLOR = "head_center_fisheye_color.mp4"
-HEAD_LEFT_FISHEYE_COLOR = "head_left_fisheye_color.mp4"
-HEAD_RIGHT_FISHEYE_COLOR = "head_right_fisheye_color.mp4"
-BACK_LEFT_FISHEYE_COLOR = "back_left_fisheye_color.mp4"
-BACK_RIGHT_FISHEYE_COLOR = "back_right_fisheye_color.mp4"
-HEAD_DEPTH = "head_depth"
+HEAD_DEPTH = "head_depth.png"
+HAND_LEFT_DEPTH = "hand_left_depth.png"
+HAND_RIGHT_DEPTH = "hand_right_depth.png"
 
-DEFAULT_IMAGE_PATH = (
-    "images/{image_key}/episode_{episode_index:06d}/frame_{frame_index:06d}.jpg"
-)
 
 FEATURES = {
-    "observation.images.head": {
+    "observation.images.head_color": {
         "dtype": "video",
-        "shape": (480, 640, 3),
+        "shape": (720, 1280, 3),
         "names": ["height", "width", "channel"],
         "info": {
             "video.fps": 30.0,
@@ -75,14 +86,9 @@ FEATURES = {
             "has_audio": False,
         },
     },
-#    "observation.images.cam_top_depth": {
-#        "dtype": "image",
-#        "shape": [480, 640, 1],
-#        "names": ["height", "width", "channel"],
-#    },
-    "observation.images.hand_left": {
+    "observation.images.hand_left_color": {
         "dtype": "video",
-        "shape": (480, 640, 3),
+        "shape": (480, 848, 3),
         "names": ["height", "width", "channel"],
         "info": {
             "video.fps": 30.0,
@@ -92,9 +98,9 @@ FEATURES = {
             "has_audio": False,
         },
     },
-    "observation.images.hand_right": {
+    "observation.images.hand_right_color": {
         "dtype": "video",
-        "shape": (480, 640, 3),
+        "shape": (480, 848, 3),
         "names": ["height", "width", "channel"],
         "info": {
             "video.fps": 30.0,
@@ -103,13 +109,66 @@ FEATURES = {
             "video.is_depth_map": False,
             "has_audio": False,
         },
+    },
+    "observation.images.head_depth": {
+        "dtype": "float32",
+        "shape": (720, 1280, 1),
+        #"names": ["height", "width", "channel"],
     },
     "observation.state": {
         "dtype": "float32",
+        "name": {
+            "left_arm_joint": [
+                "position_1",
+                "position_2",
+                "position_3",
+                "position_4",
+                "position_5",
+                "position_6",
+                "position_7",
+            ],
+            "right_arm_joint": [
+                "position_1",
+                "position_2",
+                "position_3",
+                "position_4",
+                "position_5",
+                "position_6",
+                "position_7",
+            ],
+            "left_gripper": ["range"],
+            "right_gripper": ["range"],
+            "head": ["yaw", "pitch"],
+            "waist": ["pitch", "lift"],
+        },
         "shape": (20,),
     },
     "action": {
         "dtype": "float32",
+        "name": {
+            "left_arm_joint": [
+                "position_1",
+                "position_2",
+                "position_3",
+                "position_4",
+                "position_5",
+                "position_6",
+                "position_7",
+            ],
+            "right_arm_joint": [
+                "position_1",
+                "position_2",
+                "position_3",
+                "position_4",
+                "position_5",
+                "position_6",
+                "position_7",
+            ],
+            "left_gripper": ["range"],
+            "right_gripper": ["range"],
+            "head": ["yaw", "pitch"],
+            "waist": ["pitch", "lift"],
+        },
         "shape": (20,),
     },
     "episode_index": {
@@ -121,6 +180,11 @@ FEATURES = {
         "dtype": "int64",
         "shape": [1],
         "names": None,
+    },
+    "next.done": {
+        "dtype": "bool",
+        "shape": (1,),
+        "names": None,  
     },
     "index": {
         "dtype": "int64",
@@ -153,22 +217,20 @@ def sample_images(path: str | list[str]) -> np.ndarray:
                 images = np.empty((len(sampled_indices), *img.shape), dtype=np.uint8)
 
             images[i] = img
-    
-    # assume path is a list of image paths
-    elif type(path) is list:
+
+    # assume image as an array (L, H, W, C): 
+    elif type(path) is np.ndarray:
         sampled_indices = sample_indices(len(path))
         images = None
         for i, idx in enumerate(sampled_indices):
             img = path[idx]
-            # we load as uint8 to reduce memory usage
-            img = load_image_as_numpy(img, dtype=np.uint8, channel_first=True)
             img = auto_downsample_height_width(img)
-
+            
             if images is None:
-                images = np.empty((len(sampled_indices), *img.shape), dtype=np.uint8)
+                images = np.empty((len(sampled_indices), *img.shape)).astype(img.dtype)
 
             images[i] = img
-
+    
     return images
 
 # Modified from lerobot.compute_stats.compute_episode_stats to handle depth images
@@ -181,6 +243,12 @@ def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], featu
             ep_ft_array = sample_images(data)
             axes_to_reduce = (0, 2, 3)  # keep channel dim
             keepdims = True
+        # depth image as a float32 3d array
+        # (h, w, c)
+        elif 'depth' in key:
+            ep_ft_array = sample_images(data)
+            axes_to_reduce = (0, 1, 2)  # keep channel dim
+            keepdims = True
         else:
             ep_ft_array = data  # data is already a np.ndarray
             axes_to_reduce = 0  # compute stats over the first axis
@@ -190,9 +258,8 @@ def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], featu
 
         # finally, we normalize and remove batch dim for images
         if features[key]["dtype"] in ["image", "video"]:
-            value_norm = 1.0 if "depth" in key else 255.0
             ep_stats[key] = {
-                k: v if k == "count" else np.squeeze(v / value_norm, axis=0) for k, v in ep_stats[key].items()
+                k: v if k == "count" else np.squeeze(v / 255., axis=0) for k, v in ep_stats[key].items()
             }
 
     return ep_stats
@@ -277,7 +344,7 @@ class AgiBotDataset(LeRobotDataset):
             # are processed separately by storing image path and frame info as meta data
             if key in ["index", "episode_index", "task_index"] or ft["dtype"] in ["image", "video"]:
                 continue
-            episode_buffer[key] = np.stack(episode_buffer[key]).squeeze()
+            episode_buffer[key] = np.stack(episode_buffer[key])
 
         # copy videos
         for key in self.meta.video_keys:
@@ -289,13 +356,9 @@ class AgiBotDataset(LeRobotDataset):
         # calculate episode stats in consolidate()
         ep_stats = compute_episode_stats(episode_buffer, self.features)
         
+        # to parquet files
         self._save_episode_table(episode_buffer, episode_index)
         
-        #if len(self.meta.video_keys) > 0:
-        #    video_paths = self.encode_episode_videos(episode_index)
-        #    for key in self.meta.video_keys:
-        #        episode_buffer[key] = video_paths[key]
-
         # `meta.save_episode` be executed after encoding the videos
         self.meta.save_episode(episode_index, episode_length, episode_tasks, ep_stats, action_config)
 
@@ -351,24 +414,27 @@ class AgiBotDataset(LeRobotDataset):
         self.episode_buffer["size"] += 1
                     
  
-def load_depths(root_dir: str, camera_name: str):
-    cam_path = Path(root_dir)
-    all_imgs = sorted(list(cam_path.glob(f"{camera_name}*")))
-    return [np.array(Image.open(f)).astype(np.float32) / 1000 for f in all_imgs]
+def load_depth(root_dir: str, frame_idx: int, camera_name: str):
+    cam_path = Path(root_dir)/"camera"/str(frame_idx)/camera_name
+    img = np.array(Image.open(cam_path)).astype(np.float32)/1000. # convert to meters
+    if img.ndim == 2:  # if it's a single channel image
+        img = img[:, :, np.newaxis]
+        
+    return img
 
 
-def load_local_dataset(episode_id: int, src_path: str, task_id: int) -> list | None:
+def load_local_dataset(episode_id: int, src_path: str, save_depth: bool = False) -> list | None:
     """Load local dataset and return a dict with observations and actions"""
 
     #ob_dir = Path(src_path) / f"observations/{task_id}/{episode_id}"
     ob_dir = Path(src_path) / episode_id
     
     with h5py.File(ob_dir / "aligned_joints.h5") as f:
-        state_joint = np.array(f["state/joint/position"])
-        state_left_effector = np.array(f["state/left_effector/position"])
-        state_right_effector = np.array(f["state/right_effector/position"])
-        state_head = np.array(f["state/head/position"])
-        state_waist = np.array(f["state/waist/position"])
+        state_joint = np.array(f["state/joint/position"]) # (14, ) left 1-7, right 8-14
+        state_left_effector = np.array(f["state/left_effector/position"]) # (1, )
+        state_right_effector = np.array(f["state/right_effector/position"]) # (1, )
+        state_head = np.array(f["state/head/position"]) # (2, ) yaw-1, pitch-2
+        state_waist = np.array(f["state/waist/position"]) # (2, ) pitch 1, lift 2
         
         action_joint = np.array(f["action/joint/position"])
         action_left_effector = np.array(f["action/left_effector/position"])
@@ -399,33 +465,58 @@ def load_local_dataset(episode_id: int, src_path: str, task_id: int) -> list | N
     
     # load rgb images: pass as we will use videos directly
     
+    
+    # done status
+    done = np.zeros((len(states_value),1), dtype=bool)
+    done[-1][:] = True
+    
     # add frame
     frames = [
         {   
             "observation.state": states_value[i],
             "action": action_value[i],
+            "next.done": done[i],
         }
         for i in range(len(states_value))
     ]
 
+    if save_depth:
+        for i in range(len(states_value)):
+            frames[i]["observation.images.head_depth"] = load_depth(ob_dir, i, HEAD_DEPTH)
+
     videos = {
-        "observation.images.head": ob_dir / HEAD_COLOR,
-        "observation.images.hand_left": ob_dir / HAND_LEFT_COLOR,
-        "observation.images.hand_right": ob_dir / HAND_RIGHT_COLOR,
+        "observation.images.head_color": ob_dir / HEAD_COLOR,
+        "observation.images.hand_left_color": ob_dir / HAND_LEFT_COLOR,
+        "observation.images.hand_right_color": ob_dir / HAND_RIGHT_COLOR,
     }
     
-    print(f"Loaded {len(frames)} frames from episode {episode_id} in task {task_id}.")
+    print(f"Loaded {len(frames)} frames from episode {episode_id} in {src_path}.")
     return frames, videos
 
-
+def push_to_subfolder(dataset, task_name):
+    """
+    Push the dataset to a subfolder in the Hugging Face Hub.
+    """
+    from huggingface_hub import upload_folder
+    
+    upload_folder(
+        folder_path=dataset.root,
+        path_in_repo=task_name,
+        repo_id=REPO_NAME,
+        repo_type='dataset',
+    )
+    
+       
 def main(
     src_path: str,
     tgt_path: str,
-    task_id: int,
+    task_name: str,
     repo_id: str,
     task_info_json: str,
     debug: bool = False,
-    chunk_size: int = 10  # Add chunk size parameter
+    chunk_size: int = 10,  # Add chunk size parameter
+    save_depth: bool = False,  # Add save depth parameter
+    push_to_hub: bool = True,  # Add push to hub parameter
 ):
     with open(task_info_json, "r") as f:
         task_info = json.load(f)
@@ -434,11 +525,16 @@ def main(
     robot_type = "a2d"  
     use_videos = True  # Use videos instead of images
     
+    if not save_depth:
+        # Remove depth features if not saving depth
+        FEATURES.pop("observation.images.head_depth", None)
+    
+
     dataset = AgiBotDataset.create(
         repo_id=repo_id,
         fps=fps,
         features=FEATURES,
-        root=f"{tgt_path}/{repo_id}",
+        root=f"{tgt_path}/{repo_id}/{task_name}",
         robot_type=robot_type,
         use_videos=use_videos,
     )
@@ -448,7 +544,7 @@ def main(
             repo_id=repo_id,
             fps=fps,
             features=FEATURES,
-            root=f"{tgt_path}/{repo_id}",
+            root=f"{tgt_path}/{repo_id}/{task_name}",
             robot_type=robot_type,
             use_videos=use_videos,
         )
@@ -505,12 +601,12 @@ def main(
         # Process only this chunk
         if debug:
             raw_datasets_chunk = [
-                load_local_dataset(subdir, src_path=src_path, task_id=task_id)
+                load_local_dataset(subdir, src_path=src_path, save_depth=save_depth)
                 for subdir in tqdm(chunk_eids, desc="Loading chunk data")
             ]
         else:
             raw_datasets_chunk = process_map(
-                partial(load_local_dataset, src_path=src_path, task_id=task_id),
+                partial(load_local_dataset, src_path=src_path, save_depth=save_depth),
                 chunk_eids,
                 max_workers=os.cpu_count() // 2,
                 desc=f"Loading chunk {chunk_start//chunk_size + 1}/{(len(all_episode_desc) + chunk_size - 1)//chunk_size}",
@@ -534,8 +630,11 @@ def main(
         valid_datasets = None
         gc.collect()
     
-    # Only consolidate at the end
-
+    # push to hub
+    if push_to_hub:
+        print("Pushing dataset to Hugging Face Hub...")
+        push_to_subfolder(dataset, task_name)
+        
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -544,7 +643,7 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
-        "--task_id",
+        "--task_name",
         type=str,
         required=True,
     )
@@ -560,15 +659,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chunk_size",
         type=int,
-        default=10,
+        default=1,
         help="Number of episodes to process at once",
+    )
+    parser.add_argument(
+        "--save_depth",
+        action="store_true",
+        help="Save depth images as well",
+    )
+    parser.add_argument(
+        "--push_to_hub",
+        action="store_true",
+        help="Push the dataset to the Hugging Face Hub",
     )
     args = parser.parse_args()
 
-    task_id = args.task_id
-    json_file = f"{args.src_path}/task_{args.task_id}.json"
+    src_path = f"{args.src_path}/{args.task_name}"
+    json_file = f"{args.src_path}/{args.task_name}/task_train.json"
     #dataset_base = f"agibotworld/task_{args.task_id}"
-    dataset_base = ''
-    
+    repo_id = REPO_NAME
+
     assert Path(json_file).exists, f"Cannot find {json_file}."
-    main(args.src_path, args.tgt_path, task_id, dataset_base, json_file, args.debug, args.chunk_size)
+    main(src_path, args.tgt_path, args.task_name, repo_id, json_file, args.debug, args.chunk_size, args.save_depth, args.push_to_hub)
