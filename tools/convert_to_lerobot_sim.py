@@ -62,7 +62,7 @@ from lerobot.datasets.utils import (
     write_episode_stats,
 )
 
-REPO_NAME = "yangyangfu/agibot-simdata-sample"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "yangyangfu/agibot-simdata"  # Name of the output dataset, also used for the Hugging Face Hub
 
 
 HEAD_COLOR = "head_color.mp4"
@@ -659,7 +659,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chunk_size",
         type=int,
-        default=1,
+        default=100,
         help="Number of episodes to process at once",
     )
     parser.add_argument(
