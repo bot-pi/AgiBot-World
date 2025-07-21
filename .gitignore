@@ -166,6 +166,7 @@ dataset
 sample 
 sample-univla
 test
+yangyangfu
 
 # checkpoints
 ckpts/*
