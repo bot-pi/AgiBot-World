@@ -62,9 +62,15 @@ from lerobot.datasets.utils import (
     write_episode_stats,
 )
 
-REPO_NAME = "yangyangfu/agibot-simdata"  # Name of the output dataset, also used for the Hugging Face Hub
+# some episodes are invalid, e.g., missing key files, or bad key files
+BAD_EPISODES = [
+    "Manipulation-SimData/make_a_sandwich/2810183/3361360/A2D0015AB00061/12088405", # wrong mp4, which is regenerated
+    "Manipulation-SimData/heat_the_food_in_the_microwave/2810051/3026733/A2D0015AB00061/12030347", # empty h5
+    "Manipulation-SimData/clear_the_countertop_waste/2810083/3327894/A2D0015AB00061/12041045", # empty h5
+    "Manipulation-SimData/clear_the_countertop_waste/2810083/3327930/A2D0015AB00061/12041089", # emtpy h5
+]
 
-
+REPO_NAME_BASE = "bot-pi/agibot-sim"  # Name of the output dataset, also used for the Hugging Face Hub
 HEAD_COLOR = "head_color.mp4"
 HAND_LEFT_COLOR = "hand_left_color.mp4"
 HAND_RIGHT_COLOR = "hand_right_color.mp4"
@@ -173,12 +179,12 @@ FEATURES = {
     },
     "episode_index": {
         "dtype": "int64",
-        "shape": [1],
+        "shape": (1,),
         "names": None,
     },
     "frame_index": {
         "dtype": "int64",
-        "shape": [1],
+        "shape": (1,),
         "names": None,
     },
     "next.done": {
@@ -188,12 +194,22 @@ FEATURES = {
     },
     "index": {
         "dtype": "int64",
-        "shape": [1],
+        "shape": (1,),
         "names": None,
     },
     "task_index": {
         "dtype": "int64",
-        "shape": [1],
+        "shape": (1,),
+        "names": None,
+    },
+    "timestamp": {
+        "dtype": "float64",
+        "shape": (1,),
+        "names": None,
+    },
+    "subtask": {
+        "dtype": "string",
+        "shape": (1,),
         "names": None,
     },
 }
@@ -264,7 +280,7 @@ def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], featu
 
     return ep_stats
 
-# Modified from LerobotDatsetMeta to handle action_config information
+# Modified from LerobotDatsetMeta to handle label_info information
 class AgiBotDatasetMetadata(LeRobotDatasetMetadata):
     def save_episode(
         self,
@@ -272,7 +288,7 @@ class AgiBotDatasetMetadata(LeRobotDatasetMetadata):
         episode_length: int,
         episode_tasks: list[str],
         episode_stats: dict[str, dict],
-        action_config: list[dict],
+        label_info: list[dict],
     ) -> None:
         self.info["total_episodes"] += 1
         self.info["total_frames"] += episode_length
@@ -292,7 +308,7 @@ class AgiBotDatasetMetadata(LeRobotDatasetMetadata):
             "episode_index": episode_index,
             "tasks": episode_tasks,
             "length": episode_length,
-            "action_config": action_config,
+            "label_info": label_info,
         }
         self.episodes[episode_index] = episode_dict
         write_episode(episode_dict, self.root)
@@ -306,7 +322,7 @@ class AgiBotDataset(LeRobotDataset):
     def save_episode(self, 
                     episode_data: dict | None = None, 
                     videos: dict[str, str] | None = None,
-                    action_config: dict | None = None
+                    label_info: dict | None = None
     ) -> None:
         """
         This will save to disk the current episode in self.episode_buffer.
@@ -360,7 +376,7 @@ class AgiBotDataset(LeRobotDataset):
         self._save_episode_table(episode_buffer, episode_index)
         
         # `meta.save_episode` be executed after encoding the videos
-        self.meta.save_episode(episode_index, episode_length, episode_tasks, ep_stats, action_config)
+        self.meta.save_episode(episode_index, episode_length, episode_tasks, ep_stats, label_info)
 
         # check timestamps
         ep_data_index = get_episode_data_index(self.meta.episodes, [episode_index])
@@ -412,7 +428,27 @@ class AgiBotDataset(LeRobotDataset):
             self.episode_buffer[key].append(frame[key])
 
         self.episode_buffer["size"] += 1
-                    
+
+def check_missing_files(episode_dir: str):
+    """
+    Check if the required files for an episode are present.
+    """
+    required_files = [
+        HEAD_COLOR,
+        HAND_LEFT_COLOR,
+        HAND_RIGHT_COLOR,
+        "aligned_joints.h5",
+        "data_info.json",
+    ]
+    
+    missing_files = []
+    for file in required_files:
+        if not (Path(episode_dir) / file).exists():
+            missing_files.append(file)
+    
+    return missing_files
+    
+                        
  
 def load_depth(root_dir: str, frame_idx: int, camera_name: str):
     cam_path = Path(root_dir)/"camera"/str(frame_idx)/camera_name
@@ -428,20 +464,26 @@ def load_local_dataset(episode_id: int, src_path: str, save_depth: bool = False)
 
     #ob_dir = Path(src_path) / f"observations/{task_id}/{episode_id}"
     ob_dir = Path(src_path) / episode_id
+    print(ob_dir)
     
-    with h5py.File(ob_dir / "aligned_joints.h5") as f:
-        state_joint = np.array(f["state/joint/position"]) # (14, ) left 1-7, right 8-14
-        state_left_effector = np.array(f["state/left_effector/position"]) # (1, )
-        state_right_effector = np.array(f["state/right_effector/position"]) # (1, )
-        state_head = np.array(f["state/head/position"]) # (2, ) yaw-1, pitch-2
-        state_waist = np.array(f["state/waist/position"]) # (2, ) pitch 1, lift 2
-        
-        action_joint = np.array(f["action/joint/position"])
-        action_left_effector = np.array(f["action/left_effector/position"])
-        action_right_effector = np.array(f["action/right_effector/position"])
-        action_head = np.array(f["action/head/position"])
-        action_waist = np.array(f["action/waist/position"])
-
+    # catch all errors
+    try:
+        with h5py.File(ob_dir / "aligned_joints.h5") as f:
+            state_joint = np.array(f["state/joint/position"]) # (14, ) left 1-7, right 8-14
+            state_left_effector = np.array(f["state/left_effector/position"]) # (1, )
+            state_right_effector = np.array(f["state/right_effector/position"]) # (1, )
+            state_head = np.array(f["state/head/position"]) # (2, ) yaw-1, pitch-2
+            state_waist = np.array(f["state/waist/position"]) # (2, ) pitch 1, lift 2
+            
+            action_joint = np.array(f["action/joint/position"])
+            action_left_effector = np.array(f["action/left_effector/position"])
+            action_right_effector = np.array(f["action/right_effector/position"])
+            action_head = np.array(f["action/head/position"])
+            action_waist = np.array(f["action/waist/position"])
+    except Exception as e:
+        print(f"Error loading aligned joints for episode {episode_id} in {src_path}: {e}")
+        return None
+    
     states_value = np.hstack(
         [state_joint, state_left_effector, state_right_effector, state_head, state_waist]
     ).astype(np.float32)
@@ -470,12 +512,28 @@ def load_local_dataset(episode_id: int, src_path: str, save_depth: bool = False)
     done = np.zeros((len(states_value),1), dtype=bool)
     done[-1][:] = True
     
+    # frame level subtask 
+    with open(ob_dir / "data_info.json", "r") as f:
+        data_info = json.load(f)
+    
+    action_config = data_info['label_info']['action_config']
+    task = data_info['english_task_name']
+    
+    subtasks = [task] * len(states_value)  # default to the main task for all frames
+    for action in action_config:
+        start_idx = action['start_frame']
+        end_idx = action['end_frame']
+        subtask = action['english_action_text']
+        for curr in range(start_idx, end_idx):
+            subtasks[curr] = subtask
+
     # add frame
     frames = [
         {   
             "observation.state": states_value[i],
             "action": action_value[i],
             "next.done": done[i],
+            "subtask": subtasks[i]
         }
         for i in range(len(states_value))
     ]
@@ -492,7 +550,8 @@ def load_local_dataset(episode_id: int, src_path: str, save_depth: bool = False)
     
     print(f"Loaded {len(frames)} frames from episode {episode_id} in {src_path}.")
     return frames, videos
-
+#
+# push dataset to a subfolder of a repository in the Hugging Face Hub
 def push_to_subfolder(dataset, task_name):
     """
     Push the dataset to a subfolder in the Hugging Face Hub.
@@ -505,8 +564,22 @@ def push_to_subfolder(dataset, task_name):
         repo_id=REPO_NAME,
         repo_type='dataset',
     )
+
+# push as a standalone repo
+def push_to_repo(dataset, repo_id):
+    """
+    Push the dataset to a standalone repository in the Hugging Face Hub.
+    """
+    from huggingface_hub import create_repo, upload_folder
     
-       
+    # Create a new repo
+    create_repo(repo_id=repo_id, repo_type='dataset', exist_ok=True)
+    
+    # Upload the dataset folder
+    dataset.push_to_hub(
+        repo_id=repo_id,
+    )
+    
 def main(
     src_path: str,
     tgt_path: str,
@@ -521,7 +594,7 @@ def main(
     with open(task_info_json, "r") as f:
         task_info = json.load(f)
     
-    fps = 30
+    fps = 30.0
     robot_type = "a2d"  
     use_videos = True  # Use videos instead of images
     
@@ -557,7 +630,8 @@ def main(
     valid_num_episodes = 0
     all_episode_dir = []
     all_episode_desc = []
-    all_action_config = []
+    all_label_info = []
+    all_missing = {}
     for episode in task_info:
         episode_dir = os.path.join(
             str(episode["task_id"]),
@@ -570,14 +644,22 @@ def main(
         if not episode_path.exists():
             logging.warning(f"Episode directory {episode_dir} does not exist in {src_path}. Skipping.")
             continue
+        
+        # check if the required files are present
+        missing_files = check_missing_files(episode_path)
+        if len(missing_files) > 0:
+            logging.warning(f"Missing files in {episode_dir}: {missing_files}")
+            all_missing[episode_dir] = missing_files
+            continue
+
         all_episode_dir.append(episode_dir)
         all_episode_desc.append(
             f"{episode['english_task_name']}"
         )
-        
-        # action config 
-        action_config = episode['label_info'].get('action_config', {})
-        all_action_config.append(action_config)
+
+        # label info
+        label_info = episode.get('label_info', {})
+        all_label_info.append(label_info)
 
         valid_num_episodes += 1
     
@@ -585,6 +667,9 @@ def main(
     if valid_num_episodes == 0:
         logging.warning(f"No valid episodes found in {src_path}.")
         return
+    print(f"Found {len(all_missing)} episodes with missing files: {pformat(all_missing)}")
+    with open(f"{tgt_path}/{repo_id}/missing_files.json", "w") as f:
+        json.dump(all_missing, f, indent=4)
     
     # Debug mode
     if debug:
@@ -596,8 +681,8 @@ def main(
         chunk_end = min(chunk_start + chunk_size, len(all_episode_dir))
         chunk_eids = all_episode_dir[chunk_start:chunk_end]
         chunk_descs = all_episode_desc[chunk_start:chunk_end]
-        chunk_action_configs = all_action_config[chunk_start:chunk_end]
-        
+        chunk_label_info = all_label_info[chunk_start:chunk_end]
+
         # Process only this chunk
         if debug:
             raw_datasets_chunk = [
@@ -613,18 +698,18 @@ def main(
             )
             
         # Filter out None results
-        valid_datasets = [(ds, desc, action_config) for ds, desc, action_config in zip(raw_datasets_chunk, chunk_descs, chunk_action_configs) if ds is not None]
-        
+        valid_datasets = [(ds, desc, label_info) for ds, desc, label_info in zip(raw_datasets_chunk, chunk_descs, chunk_label_info) if ds is not None]
+
         # Process each dataset in the chunk
-        for raw_dataset, episode_desc, action_config in tqdm(valid_datasets, desc="Processing episodes in chunk"):
+        for raw_dataset, episode_desc, label_info in tqdm(valid_datasets, desc="Processing episodes in chunk"):
             for frame in tqdm(
                 raw_dataset[0], desc="Processing frames", leave=False
             ):
 
                 dataset.add_frame(frame=frame, task=episode_desc)
             #dataset.save_episode(task=episode_desc, videos=raw_dataset[1])
-            dataset.save_episode(videos=raw_dataset[1], action_config=action_config)
-            
+            dataset.save_episode(videos=raw_dataset[1], label_info=label_info)
+
         # Clear memory after each chunk
         raw_datasets_chunk = None
         valid_datasets = None
@@ -633,7 +718,10 @@ def main(
     # push to hub
     if push_to_hub:
         print("Pushing dataset to Hugging Face Hub...")
-        push_to_subfolder(dataset, task_name)
+        #push_to_subfolder(dataset, task_name)
+        push_to_repo(dataset, repo_id)
+        print(f"Dataset pushed to {repo_id} successfully.")
+        
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -659,7 +747,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chunk_size",
         type=int,
-        default=100,
+        default=1000,
         help="Number of episodes to process at once",
     )
     parser.add_argument(
@@ -677,7 +765,7 @@ if __name__ == "__main__":
     src_path = f"{args.src_path}/{args.task_name}"
     json_file = f"{args.src_path}/{args.task_name}/task_train.json"
     #dataset_base = f"agibotworld/task_{args.task_id}"
-    repo_id = REPO_NAME
+    repo_id = REPO_NAME_BASE+ f"-{args.task_name}".replace("_", "-")  # Use task_name as repo_id
 
     assert Path(json_file).exists, f"Cannot find {json_file}."
     main(src_path, args.tgt_path, args.task_name, repo_id, json_file, args.debug, args.chunk_size, args.save_depth, args.push_to_hub)
