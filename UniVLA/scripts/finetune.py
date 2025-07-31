@@ -408,11 +408,11 @@ def finetune(cfg):
             progress.set_description("Epoch " + str(e+1))
                 
             for batch_idx, batch in enumerate(dataloader):
-                batch["init_pixel_values"] = batch["init_pixel_values"].to(device_id) # [8, 3, 224, 224]
-                batch["goal_pixel_values"] = batch["goal_pixel_values"].to(device_id) # [8, 3, 224, 224]
-                batch["pixel_values"] = batch["pixel_values"].to(torch.bfloat16).to(device_id) # [8, 6, 224, 224]
-                batch['actions'] = batch['actions'].to(device_id) # [8, 12, 7]
-                batch['proprio'] = batch['proprio'].to(device_id) # [8, 7]
+                batch["init_pixel_values"] = batch["init_pixel_values"].to(device_id) # [b, 3, 224, 224]
+                batch["goal_pixel_values"] = batch["goal_pixel_values"].to(device_id) # [b, 3, 224, 224]
+                batch["pixel_values"] = batch["pixel_values"].to(torch.bfloat16).to(device_id) # [b, 18, 224, 224]
+                batch['actions'] = batch['actions'].to(device_id) # [b, 30, 16]
+                batch['proprio'] = batch['proprio'].to(device_id) # [b, 1, 16]
            
                 if len(batch["hist_init_pixel_values"]) > 1:
                     batch["hist_init_pixel_values"] = batch["hist_init_pixel_values"].to(device_id) # [2, 3, 224, 224]
@@ -475,7 +475,7 @@ def finetune(cfg):
                 else:
                     with torch.no_grad():
                         video = torch.stack([batch["init_pixel_values"], batch["goal_pixel_values"]], dim=1)
-                        latent_action_idx_batch = latent_action_model.module.vq_encode(video)['indices'].squeeze()
+                        latent_action_idx_batch = latent_action_model.module.vq_encode(video)['indices'].squeeze() #(b, 4)
 
                     input_ids_list = []
                     labels_list = []

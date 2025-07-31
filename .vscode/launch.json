@@ -1,6 +1,23 @@
 {
     "version": "0.2.0",
     "configurations": [
+        
+        {
+            "name": "convert_to_lerobot_sim.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/convert_to_lerobot_sim.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--src_path",
+                "${workspaceFolder}/sample/Manipulation-SimData",
+                "--tgt_path",
+                "${workspaceFolder}/test",
+                "--task_name",
+                "stamp_the_seal",
+            ],
+            "justMyCode": false
+        },
         {
             "name": "Debug finetune_genie.py with torchrun",
             "type": "debugpy",
@@ -8,7 +25,24 @@
             "module": "torch.distributed.run",
             "args": [
                 "--nproc_per_node=1",
-                "scripts/finetune.py"
+                "UniVLA/scripts/finetune.py", 
+                "--vla_path", "ckpts/univla-7b",
+                "--lam_path", "ckpts/univla-latent-action-model/lam-stage-2.ckpt",
+                "--data_root_dir", "sample-univla/Manipulation-SimData",
+                "--codebook_size", "16",
+                "--batch_size", "4",
+                "--grad_accumulation_steps", "4",
+                "--max_steps", "300000",
+                "--save_steps", "1000",
+                "--learning_rate", "1e-5",
+                "--run_root_dir", "runs/agibot",
+                "--adapter_tmp_dir", "runs/agibot",
+                "--use_lora",
+                "--use_quantization",
+                "--wandb_project", "qlora_vla",
+                "--with_proprio",
+                "--wogripper",
+                "--task_ids", "1"
             ],
             "console": "integratedTerminal",
             "justMyCode": false

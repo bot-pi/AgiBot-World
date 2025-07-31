@@ -163,6 +163,10 @@ cython_debug/
 
 # ignore data
 dataset
+sample 
+sample-univla
+test
+yangyangfu
 
 # checkpoints
 ckpts/*

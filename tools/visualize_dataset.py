@@ -23,7 +23,7 @@ import torch.utils.data
 import tqdm
 import matplotlib.pyplot as plt
 
-from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 
 class EpisodeSampler(torch.utils.data.Sampler):
@@ -151,8 +151,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--task-id",
-        type=int,
+        "--task-name",
+        type=str,
         default=None,
         help="Index of the AgiBot World task.",
     )
@@ -223,11 +223,11 @@ def main():
 
     args = parser.parse_args()
     kwargs = vars(args)
-    repo_id = f"agibotworld/task_{kwargs.pop('task_id')}"
-    root = f"{kwargs.pop('dataset_path')}/{repo_id}"
+    repo_id = f"yangyangfu/agibot-simdata/"
+    root = f"{kwargs.pop('dataset_path')}/{kwargs.pop('task_name')}"
 
     logging.info("Loading dataset")
-    dataset = LeRobotDataset(repo_id, root=root, local_files_only=True)
+    dataset = LeRobotDataset(repo_id, root=root)
 
     visualize_dataset(dataset, **vars(args))
 
